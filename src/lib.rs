@@ -47,4 +47,11 @@ impl Default for Pluto {
     }
 }
 
-impl Pluto {}
+impl Pluto {
+    pub fn build(method: &str) -> Self {
+        Self {
+            method: PingMethod::from(method),
+            ..Self::default()
+        }
+    }
+}
