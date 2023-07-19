@@ -1,3 +1,5 @@
+pub mod error;
+
 use tokio::time::Instant;
 
 #[derive(Default)]
