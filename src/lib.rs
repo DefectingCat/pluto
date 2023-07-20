@@ -35,25 +35,34 @@ pub struct TcpFrame {
 }
 impl TcpFrame {
     pub fn calculate_delay(&mut self) {
-        let nanos = self.start.elapsed().as_nanos();
-        let millis = nanos as f32 / 1000000 as f32;
-        self.elapsed = millis
+        self.elapsed = calculate_delay_millis(self.start)
     }
 }
 
+fn calculate_delay_millis(start: Instant) -> f32 {
+    let nanos = start.elapsed().as_nanos();
+    (nanos as f32) / (1_000_000 as f32)
+}
+
 pub struct Pluto {
+    /// Calculate total time
+    pub start: Instant,
     pub method: PingMethod,
     pub port: u32,
     pub queue: Vec<TcpFrame>,
     pub host: String,
+    // elapsed time millis
+    pub elapsed: f32,
 }
 impl Default for Pluto {
     fn default() -> Self {
         Self {
+            start: Instant::now(),
             method: PingMethod::default(),
             port: 80,
             queue: vec![],
             host: String::new(),
+            elapsed: 0.0,
         }
     }
 }
@@ -82,6 +91,10 @@ impl Pluto {
         self.queue.push(frame);
         Ok(())
     }
+    pub fn end(&mut self) {
+        self.elapsed = calculate_delay_millis(self.start);
+    }
+
     /// Send tcp ping with TcpStream connection,
     /// calculate time with host accepted connection.
     fn tcp_ping(&self) -> Result<TcpFrame> {
@@ -95,7 +108,7 @@ impl Pluto {
 
         stream.shutdown(std::net::Shutdown::Both)?;
 
-        frame.elapsed = (frame.start.elapsed().as_nanos() as f32) / (1_000_000 as f32);
+        frame.calculate_delay();
 
         Ok(frame)
     }
