@@ -30,7 +30,7 @@ fn main() -> Result<()> {
     let pluto = Pluto::build(args.method, host);
 
     for i in 0..args.count {
-        println!("{}", i);
+        pluto.ping();
     }
 
     Ok(())

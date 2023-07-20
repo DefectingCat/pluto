@@ -1,4 +1,7 @@
 pub mod error;
+use anyhow::Result;
+
+use std::{io::Write, net::TcpStream};
 
 use clap::ValueEnum;
 use tokio::time::Instant;
@@ -63,9 +66,17 @@ impl Pluto {
         use PingMethod::*;
         match self.method {
             Http => {}
-            Tcp => self.tcp_ping(),
-            _ => {}
+            Tcp => {
+                self.tcp_ping();
+            }
         }
     }
-    fn tcp_ping(&self) {}
+    fn tcp_ping(&self) -> Result<()> {
+        let mut stream = TcpStream::connect(&self.host)?;
+
+        let bytes = [0u8; 4];
+        stream.write_all(&bytes)?;
+
+        Ok(())
+    }
 }
