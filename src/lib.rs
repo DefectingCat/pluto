@@ -22,7 +22,7 @@ impl From<&str> for PingMethod {
 
 pub struct TcpFrame {
     // request start time
-    pub start: Instant,
+    start: Instant,
     // elapsed time millis
     pub elapsed: f32,
 }
