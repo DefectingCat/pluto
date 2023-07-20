@@ -1,13 +1,13 @@
 pub mod error;
 
+use clap::ValueEnum;
 use tokio::time::Instant;
 
-#[derive(Default)]
+#[derive(Default, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum, Debug)]
 pub enum PingMethod {
     #[default]
     Tcp,
     Http,
-    Unknow,
 }
 impl From<&str> for PingMethod {
     fn from(value: &str) -> Self {
@@ -15,7 +15,7 @@ impl From<&str> for PingMethod {
         match value.to_lowercase().as_str() {
             "tcp" => Tcp,
             "http" => Http,
-            _ => Unknow,
+            _ => Http,
         }
     }
 }
@@ -38,6 +38,7 @@ pub struct Pluto {
     pub method: PingMethod,
     pub port: u32,
     pub queue: Vec<TcpFrame>,
+    pub host: String,
 }
 impl Default for Pluto {
     fn default() -> Self {
@@ -45,15 +46,26 @@ impl Default for Pluto {
             method: PingMethod::default(),
             port: 80,
             queue: vec![],
+            host: String::new(),
         }
     }
 }
 
 impl Pluto {
-    pub fn build(method: &str) -> Self {
+    pub fn build(method: PingMethod, host: String) -> Self {
         Self {
-            method: PingMethod::from(method),
+            method,
+            host,
             ..Self::default()
         }
     }
+    pub fn ping(&self) {
+        use PingMethod::*;
+        match self.method {
+            Http => {}
+            Tcp => self.tcp_ping(),
+            _ => {}
+        }
+    }
+    fn tcp_ping(&self) {}
 }
