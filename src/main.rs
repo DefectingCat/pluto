@@ -38,5 +38,8 @@ fn main() -> Result<()> {
         };
     }
 
+    println!();
+    println!("Ping statistics for {}", pluto.host);
+
     Ok(())
 }

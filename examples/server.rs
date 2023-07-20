@@ -2,7 +2,7 @@ use anyhow::{Ok, Result};
 use env_logger::{Builder, Env};
 use log::info;
 use tokio::{
-    io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader},
+    io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
     net::{TcpListener, TcpStream},
 };
 

@@ -1,10 +1,10 @@
 pub mod error;
+
 use anyhow::Result;
 
 use std::{
-    io::{BufReader, Read, Write},
-    net::TcpStream,
-    time::Instant,
+    net::{TcpStream, ToSocketAddrs},
+    time::{Duration, Instant},
 };
 
 use clap::ValueEnum;
@@ -90,20 +90,10 @@ impl Pluto {
             elapsed: 0.0,
         };
 
-        let mut stream = TcpStream::connect(&self.host)?;
+        let host: Vec<_> = self.host.to_socket_addrs()?.collect();
+        let stream = TcpStream::connect_timeout(&host[0], Duration::from_millis(500))?;
 
-        let mut bytes = [1u8; 8];
-        bytes[bytes.len() - 4] = 13u8;
-        bytes[bytes.len() - 3] = 10u8;
-        bytes[bytes.len() - 2] = 13u8;
-        bytes[bytes.len() - 1] = 10u8;
-
-        stream.write_all(&bytes)?;
-        stream.flush()?;
-
-        let mut buf = BufReader::new(&stream);
-        let mut buffer = String::new();
-        buf.read_to_string(&mut buffer)?;
+        stream.shutdown(std::net::Shutdown::Both)?;
 
         frame.elapsed = (frame.start.elapsed().as_nanos() as f32) / (1_000_000 as f32);
 
