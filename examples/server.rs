@@ -2,7 +2,7 @@ use anyhow::{Ok, Result};
 use env_logger::{Builder, Env};
 use log::info;
 use tokio::{
-    io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
+    io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader},
     net::{TcpListener, TcpStream},
 };
 
@@ -25,6 +25,7 @@ async fn main() -> Result<()> {
 
 async fn handler(mut stream: TcpStream) -> Result<()> {
     let mut buf = BufReader::new(&mut stream);
+
     let mut request = String::new();
     loop {
         let byte = buf.read_line(&mut request).await?;
@@ -32,7 +33,7 @@ async fn handler(mut stream: TcpStream) -> Result<()> {
             break;
         }
     }
-    info!("{}", request);
+    info!("Got connection {:?}", request);
 
     stream
         .write_all("HTTP/1.1 200 OK\r\nContent-type: text/plain\r\n\r\nHello world".as_bytes())

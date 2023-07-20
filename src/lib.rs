@@ -1,10 +1,9 @@
 pub mod error;
 use anyhow::Result;
 
-use std::{io::Write, net::TcpStream};
+use std::{io::Write, net::TcpStream, time::Instant};
 
 use clap::ValueEnum;
-use tokio::time::Instant;
 
 #[derive(Default, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum, Debug)]
 pub enum PingMethod {
@@ -23,6 +22,7 @@ impl From<&str> for PingMethod {
     }
 }
 
+#[derive(Debug)]
 pub struct TcpFrame {
     // request start time
     start: Instant,
@@ -55,28 +55,55 @@ impl Default for Pluto {
 }
 
 impl Pluto {
-    pub fn build(method: PingMethod, host: String) -> Self {
+    pub fn build(method: PingMethod, host: String, port: u32) -> Self {
+        let host = format!("{}:{}", host, port);
         Self {
             method,
             host,
             ..Self::default()
         }
     }
-    pub fn ping(&self) {
+    pub fn ping(&mut self) -> Result<()> {
         use PingMethod::*;
-        match self.method {
-            Http => {}
-            Tcp => {
-                self.tcp_ping();
+        let frame = match self.method {
+            Http => {
+                todo!()
             }
-        }
+            Tcp => self.tcp_ping()?,
+        };
+        println!(
+            "Ping tcp::{} - Connected - time={}ms",
+            self.host, frame.elapsed
+        );
+        self.queue.push(frame);
+        Ok(())
     }
-    fn tcp_ping(&self) -> Result<()> {
+    /// Send tcp ping with TcpStream connection,
+    /// calculate time with host accepted connection.
+    /// And not count response time in.
+    fn tcp_ping(&self) -> Result<TcpFrame> {
+        let mut frame = TcpFrame {
+            start: Instant::now(),
+            elapsed: 0.0,
+        };
+
         let mut stream = TcpStream::connect(&self.host)?;
 
-        let bytes = [0u8; 4];
-        stream.write_all(&bytes)?;
+        let mut bytes = [1u8; 8];
+        bytes[bytes.len() - 4] = 13u8;
+        bytes[bytes.len() - 3] = 10u8;
+        bytes[bytes.len() - 2] = 13u8;
+        bytes[bytes.len() - 1] = 10u8;
 
-        Ok(())
+        stream.write_all(&bytes)?;
+        stream.flush()?;
+
+        // let mut buf = BufReader::new(&stream);
+        // let mut buffer = String::new();
+        // buf.read_to_string(&mut buffer)?;
+
+        frame.elapsed = (frame.start.elapsed().as_nanos() as f32) / (1_000_000 as f32);
+
+        Ok(frame)
     }
 }

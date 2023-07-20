@@ -1,4 +1,4 @@
-use anyhow::{Ok, Result};
+use anyhow::Result;
 use clap::Parser;
 use pluto::{error::PlutoError, PingMethod, Pluto};
 use tokio::time::Instant;
@@ -15,7 +15,7 @@ struct Args {
     #[arg(short, long, default_value_t = 4)]
     count: usize,
     /// The protocol will used, http or tcp
-    #[arg(short, long, value_enum, default_value_t = PingMethod::Http)]
+    #[arg(short, long, value_enum, default_value_t = PingMethod::Tcp)]
     method: PingMethod,
 }
 
@@ -27,10 +27,15 @@ fn main() -> Result<()> {
     // Total time
     let start = Instant::now();
 
-    let pluto = Pluto::build(args.method, host);
+    let mut pluto = Pluto::build(args.method, host, args.port);
 
-    for i in 0..args.count {
-        pluto.ping();
+    for _ in 0..args.count {
+        match pluto.ping() {
+            Ok(_) => {}
+            Err(err) => {
+                eprintln!("Send package failed {}", err)
+            }
+        };
     }
 
     Ok(())
