@@ -33,7 +33,7 @@ fn main() -> Result<()> {
         match pluto.ping() {
             Ok(_) => {}
             Err(err) => {
-                eprintln!("Send package failed {}", err)
+                eprintln!("Timeout {}", err)
             }
         };
     }

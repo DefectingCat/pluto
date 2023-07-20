@@ -1,7 +1,11 @@
 pub mod error;
 use anyhow::Result;
 
-use std::{io::Write, net::TcpStream, time::Instant};
+use std::{
+    io::{BufReader, Read, Write},
+    net::TcpStream,
+    time::Instant,
+};
 
 use clap::ValueEnum;
 
@@ -80,7 +84,6 @@ impl Pluto {
     }
     /// Send tcp ping with TcpStream connection,
     /// calculate time with host accepted connection.
-    /// And not count response time in.
     fn tcp_ping(&self) -> Result<TcpFrame> {
         let mut frame = TcpFrame {
             start: Instant::now(),
@@ -98,9 +101,9 @@ impl Pluto {
         stream.write_all(&bytes)?;
         stream.flush()?;
 
-        // let mut buf = BufReader::new(&stream);
-        // let mut buffer = String::new();
-        // buf.read_to_string(&mut buffer)?;
+        let mut buf = BufReader::new(&stream);
+        let mut buffer = String::new();
+        buf.read_to_string(&mut buffer)?;
 
         frame.elapsed = (frame.start.elapsed().as_nanos() as f32) / (1_000_000 as f32);
 
