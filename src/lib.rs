@@ -1,6 +1,7 @@
 pub mod error;
 
 use anyhow::Result;
+use error::PlutoError;
 
 use std::{
     net::{TcpStream, ToSocketAddrs},
@@ -26,7 +27,7 @@ impl From<&str> for PingMethod {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, PartialOrd)]
 pub struct TcpFrame {
     // request start time
     start: Instant,
@@ -38,12 +39,31 @@ impl TcpFrame {
         self.elapsed = calculate_delay_millis(self.start)
     }
 }
+impl Eq for TcpFrame {}
+impl Ord for TcpFrame {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        use std::cmp::Ordering::*;
+        match self.elapsed - other.elapsed {
+            x if x < 0.0 => Less,
+            x if x > 0.0 => Greater,
+            x if x == 0.0 => Equal,
+            _ => Equal,
+        }
+    }
+}
 
+/// Calculate milliseconds until now.
 fn calculate_delay_millis(start: Instant) -> f32 {
     let nanos = start.elapsed().as_nanos();
     (nanos as f32) / (1_000_000 as f32)
 }
 
+#[derive(Debug, Default)]
+pub struct PingResult {
+    pub minimum: f32,
+    pub maximum: f32,
+    pub average: f32,
+}
 pub struct Pluto {
     /// Calculate total time
     pub start: Instant,
@@ -53,6 +73,7 @@ pub struct Pluto {
     pub host: String,
     // elapsed time millis
     pub elapsed: f32,
+    pub result: PingResult,
 }
 impl Default for Pluto {
     fn default() -> Self {
@@ -63,6 +84,7 @@ impl Default for Pluto {
             queue: vec![],
             host: String::new(),
             elapsed: 0.0,
+            result: PingResult::default(),
         }
     }
 }
@@ -91,8 +113,27 @@ impl Pluto {
         self.queue.push(frame);
         Ok(())
     }
-    pub fn end(&mut self) {
+    pub fn end(&mut self) -> Result<()> {
         self.elapsed = calculate_delay_millis(self.start);
+
+        self.result.maximum = self
+            .queue
+            .iter()
+            .max_by(|x, y| x.cmp(y))
+            .ok_or(PlutoError::CmpError(format!("cmp failed")))?
+            .elapsed;
+        self.result.minimum = self
+            .queue
+            .iter()
+            .min()
+            .ok_or(PlutoError::CmpError(format!("cmp failed")))?
+            .elapsed;
+        let total = self
+            .queue
+            .iter()
+            .fold(0.0, |prev, frame| prev + frame.elapsed);
+        self.result.average = total / self.queue.len() as f32;
+        Ok(())
     }
 
     /// Send tcp ping with TcpStream connection,

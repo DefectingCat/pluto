@@ -31,13 +31,16 @@ fn main() -> Result<()> {
             }
         };
     }
-    pluto.end();
+    pluto.end().unwrap();
 
     println!();
     println!("Ping statistics for {}", pluto.host);
     println!("{} package sent", pluto.queue.len());
-    println!("Approximate trip times in milliseconds");
-    // println!("Minimum = {}ms", )
+    println!("Approximate trip times in milliseconds:");
+    println!(
+        "Minimum = {}ms, Maximum = {}ms, Average = {}ms",
+        pluto.result.maximum, pluto.result.minimum, pluto.result.average
+    );
 
     Ok(())
 }
