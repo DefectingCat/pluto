@@ -66,7 +66,7 @@ pub struct PingResult {
 }
 pub struct Pluto {
     /// Calculate total time
-    pub start: Instant,
+    start: Instant,
     pub method: PingMethod,
     pub port: u32,
     pub queue: Vec<TcpFrame>,
@@ -120,13 +120,13 @@ impl Pluto {
             .queue
             .iter()
             .max_by(|x, y| x.cmp(y))
-            .ok_or(PlutoError::CmpError(format!("cmp failed")))?
+            .ok_or(PlutoError::CmpError("find maximum failed"))?
             .elapsed;
         self.result.minimum = self
             .queue
             .iter()
             .min()
-            .ok_or(PlutoError::CmpError(format!("cmp failed")))?
+            .ok_or(PlutoError::CmpError("find minimum failed"))?
             .elapsed;
         let total = self
             .queue
