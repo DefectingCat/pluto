@@ -26,7 +26,7 @@ impl From<&str> for PingMethod {
     }
 }
 
-#[derive(Debug, PartialEq, PartialOrd)]
+#[derive(Debug, PartialEq)]
 pub struct TcpFrame {
     // request start time
     start: Instant,
@@ -41,6 +41,29 @@ impl TcpFrame {
     }
 }
 impl Eq for TcpFrame {}
+impl PartialOrd for TcpFrame {
+    fn ge(&self, other: &Self) -> bool {
+        self.elapsed >= other.elapsed
+    }
+    fn gt(&self, other: &Self) -> bool {
+        self.elapsed > other.elapsed
+    }
+    fn le(&self, other: &Self) -> bool {
+        self.elapsed <= other.elapsed
+    }
+    fn lt(&self, other: &Self) -> bool {
+        self.elapsed < other.elapsed
+    }
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        use std::cmp::Ordering::*;
+        match self.elapsed - other.elapsed {
+            x if x < 0.0 => Some(Less),
+            x if x > 0.0 => Some(Greater),
+            x if x == 0.0 => Some(Equal),
+            _ => Some(Equal),
+        }
+    }
+}
 impl Ord for TcpFrame {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         use std::cmp::Ordering::*;
@@ -175,5 +198,37 @@ impl Pluto {
         );
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::time::Instant;
+
+    use crate::{PingMethod, TcpFrame};
+
+    #[test]
+    fn serialize_method() {
+        let tcp = PingMethod::from("tcp");
+        assert_eq!(tcp, PingMethod::Tcp);
+        let http = PingMethod::from("http");
+        assert_eq!(http, PingMethod::Http);
+        let other = PingMethod::from("rua");
+        assert_eq!(other, PingMethod::Http);
+    }
+
+    #[test]
+    fn cmp_frame() {
+        let lager = TcpFrame {
+            start: Instant::now(),
+            elapsed: 0.12,
+            success: true,
+        };
+        let samller = TcpFrame {
+            start: Instant::now(),
+            elapsed: 0.1,
+            success: true,
+        };
+        assert!(lager > samller);
     }
 }
