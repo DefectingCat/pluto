@@ -205,7 +205,7 @@ impl Pluto {
     /// Send tcp ping with TcpStream connection,
     /// calculate time with host accepted connection.
     fn tcp_ping(&mut self) -> Result<()> {
-        let stream = self.client()?;
+        let mut stream = self.client()?;
 
         self.queue.push(TcpFrame {
             start: Instant::now(),
@@ -215,6 +215,11 @@ impl Pluto {
         let len = self.queue.len();
         let frame = &mut self.queue[len - 1];
 
+        let data = [0u8; 56];
+        stream.write_all(&data)?;
+        stream.flush()?;
+
+        // stream.
         stream.shutdown(std::net::Shutdown::Both)?;
 
         frame.calculate_delay();
@@ -252,6 +257,7 @@ impl Pluto {
         stream.write_all(
             format!("{first_line}{headers}{}", String::from_utf8_lossy(&body)).as_bytes(),
         )?;
+        stream.flush()?;
 
         if self.wait {
             read_response(&mut stream)?;

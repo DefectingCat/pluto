@@ -11,7 +11,7 @@ async fn main() -> Result<()> {
     let env = Env::default().filter_or("RUST_LOG", "server");
     Builder::from_env(env).init();
 
-    let listener = TcpListener::bind("127.0.0.1:4000").await?;
+    let listener = TcpListener::bind("0.0.0.0:4000").await?;
     info!("Server running at http://127.0.0.1:4000");
 
     loop {
