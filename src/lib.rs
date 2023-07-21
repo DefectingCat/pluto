@@ -1,7 +1,6 @@
 pub mod error;
 
 use anyhow::Result;
-use error::PlutoError;
 
 use std::{
     net::{TcpStream, ToSocketAddrs},
@@ -33,6 +32,8 @@ pub struct TcpFrame {
     start: Instant,
     // elapsed time millis
     pub elapsed: f32,
+    // The package is sent successful
+    pub success: bool,
 }
 impl TcpFrame {
     pub fn calculate_delay(&mut self) {
@@ -63,6 +64,7 @@ pub struct PingResult {
     pub minimum: f32,
     pub maximum: f32,
     pub average: f32,
+    pub success: usize,
 }
 pub struct Pluto {
     /// Calculate total time
@@ -100,17 +102,12 @@ impl Pluto {
     }
     pub fn ping(&mut self) -> Result<()> {
         use PingMethod::*;
-        let frame = match self.method {
+        match self.method {
             Http => {
                 todo!()
             }
             Tcp => self.tcp_ping()?,
         };
-        println!(
-            "Ping tcp::{} - Connected - time={}ms",
-            self.host, frame.elapsed
-        );
-        self.queue.push(frame);
         Ok(())
     }
     pub fn end(&mut self) -> Result<()> {
@@ -119,30 +116,50 @@ impl Pluto {
         self.result.maximum = self
             .queue
             .iter()
+            .filter(|frame| frame.success)
             .max_by(|x, y| x.cmp(y))
-            .ok_or(PlutoError::CmpError("find maximum failed"))?
+            .unwrap_or(&TcpFrame {
+                start: Instant::now(),
+                elapsed: 0.0,
+                success: false,
+            })
             .elapsed;
         self.result.minimum = self
             .queue
             .iter()
+            .filter(|frame| frame.success)
             .min()
-            .ok_or(PlutoError::CmpError("find minimum failed"))?
+            .unwrap_or(&TcpFrame {
+                start: Instant::now(),
+                elapsed: 0.0,
+                success: false,
+            })
             .elapsed;
         let total = self
             .queue
             .iter()
+            .filter(|frame| frame.success)
             .fold(0.0, |prev, frame| prev + frame.elapsed);
         self.result.average = total / self.queue.len() as f32;
+        self.result.success = self
+            .queue
+            .iter()
+            .filter(|frame| frame.success)
+            .collect::<Vec<_>>()
+            .len();
         Ok(())
     }
 
     /// Send tcp ping with TcpStream connection,
     /// calculate time with host accepted connection.
-    fn tcp_ping(&self) -> Result<TcpFrame> {
-        let mut frame = TcpFrame {
+    fn tcp_ping(&mut self) -> Result<()> {
+        self.queue.push(TcpFrame {
             start: Instant::now(),
             elapsed: 0.0,
-        };
+            success: false,
+        });
+        let len = self.queue.len();
+        let frame = &mut self.queue[len - 1];
 
         let host: Vec<_> = self.host.to_socket_addrs()?.collect();
         let stream = TcpStream::connect_timeout(&host[0], Duration::from_millis(500))?;
@@ -150,7 +167,13 @@ impl Pluto {
         stream.shutdown(std::net::Shutdown::Both)?;
 
         frame.calculate_delay();
+        frame.success = true;
 
-        Ok(frame)
+        println!(
+            "Ping tcp::{} - Connected - time={}ms",
+            self.host, frame.elapsed
+        );
+
+        Ok(())
     }
 }

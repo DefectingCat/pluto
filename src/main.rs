@@ -27,15 +27,26 @@ fn main() -> Result<()> {
         match pluto.ping() {
             Ok(_) => {}
             Err(err) => {
-                eprintln!("Timeout {}", err)
+                eprintln!("Ping {}", err)
             }
         };
     }
-    pluto.end().unwrap();
+    match pluto.end() {
+        Ok(_) => {}
+        Err(err) => {
+            eprintln!("{}", err);
+        }
+    }
 
+    let len = pluto.queue.len();
     println!();
     println!("Ping statistics for {}", pluto.host);
-    println!("{} package sent", pluto.queue.len());
+    println!(
+        "{} package sent, {} package success, {} package loss",
+        len,
+        pluto.result.success,
+        len - pluto.result.success
+    );
     println!("Approximate trip times in milliseconds:");
     println!(
         "Minimum = {}ms, Maximum = {}ms, Average = {}ms",
