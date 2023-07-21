@@ -126,9 +126,7 @@ impl Pluto {
     pub fn ping(&mut self) -> Result<()> {
         use PingMethod::*;
         match self.method {
-            Http => {
-                todo!()
-            }
+            Http => self.http_ping()?,
             Tcp => self.tcp_ping()?,
         };
         Ok(())
@@ -196,6 +194,19 @@ impl Pluto {
             "Ping tcp::{} - Connected - time={}ms",
             self.host, frame.elapsed
         );
+
+        Ok(())
+    }
+
+    fn http_ping(&mut self) -> Result<()> {
+        self.queue.push(TcpFrame {
+            start: Instant::now(),
+            elapsed: 0.0,
+            success: false,
+        });
+
+        let host: Vec<_> = self.host.to_socket_addrs()?.collect();
+        dbg!(&host);
 
         Ok(())
     }
