@@ -205,13 +205,13 @@ impl Pluto {
     /// Send tcp ping with TcpStream connection,
     /// calculate time with host accepted connection.
     fn tcp_ping(&mut self) -> Result<()> {
-        let mut stream = self.client()?;
-
         self.queue.push(TcpFrame {
             start: Instant::now(),
             elapsed: 0.0,
             success: false,
         });
+        let mut stream = self.client()?;
+
         let len = self.queue.len();
         let frame = &mut self.queue[len - 1];
 
@@ -234,13 +234,13 @@ impl Pluto {
 
     /// Send ping package with http protocol
     fn http_ping(&mut self) -> Result<()> {
-        let mut stream = self.client()?;
-
         self.queue.push(TcpFrame {
             start: Instant::now(),
             elapsed: 0.0,
             success: false,
         });
+        let mut stream = self.client()?;
+
         let len = self.queue.len();
         let frame = &mut self.queue[len - 1];
 
