@@ -1,6 +1,6 @@
 use anyhow::Result;
 use clap::Parser;
-use pluto::{error::PlutoError, PingMethod, Pluto};
+use pluto::{error::PlutoError, HttpMethod, PingMethod, Pluto};
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -19,6 +19,12 @@ struct Args {
     /// Wait http response, only for -m http
     #[arg(short, long)]
     wait: bool,
+    /// Send package size, will add to body with http
+    #[arg(short, long, default_value_t = 56)]
+    bytes: usize,
+    /// Http request method
+    #[arg(short = 'X', long, value_enum, default_value_t = HttpMethod::GET)]
+    x: HttpMethod,
 }
 
 fn main() -> Result<()> {

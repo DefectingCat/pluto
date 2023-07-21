@@ -27,6 +27,20 @@ impl From<&str> for PingMethod {
     }
 }
 
+#[derive(Debug, Default, ValueEnum, Clone)]
+pub enum HttpMethod {
+    #[default]
+    GET,
+    HEAD,
+    POST,
+    PUT,
+    DELETE,
+    CONNECT,
+    OPTIONS,
+    TRACE,
+    PATCH,
+}
+
 #[derive(Debug, PartialEq)]
 pub struct TcpFrame {
     // request start time
