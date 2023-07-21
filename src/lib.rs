@@ -3,7 +3,7 @@ pub mod error;
 use anyhow::Result;
 
 use std::{
-    io::Write,
+    io::{BufRead, BufReader, Write},
     net::{TcpStream, ToSocketAddrs},
     time::{Duration, Instant},
 };
@@ -93,12 +93,19 @@ pub struct PingResult {
 pub struct Pluto {
     /// Calculate total time
     start: Instant,
+    /// Connect method, tcp or http
     pub method: PingMethod,
+    /// Target host port, default 80
     pub port: u32,
+    /// Tcp package queue
     pub queue: Vec<TcpFrame>,
+    /// Target host
     pub host: String,
-    // elapsed time millis
+    /// elapsed time millis
     pub elapsed: f32,
+    /// Wait target host response
+    pub wait: bool,
+    /// All results
     pub result: PingResult,
 }
 impl Default for Pluto {
@@ -111,16 +118,18 @@ impl Default for Pluto {
             host: String::new(),
             elapsed: 0.0,
             result: PingResult::default(),
+            wait: false,
         }
     }
 }
 
 impl Pluto {
-    pub fn build(method: PingMethod, host: String, port: u32) -> Self {
+    pub fn build(method: PingMethod, host: String, port: u32, wait: bool) -> Self {
         let host = format!("{}:{}", host, port);
         Self {
             method,
             host,
+            wait,
             ..Self::default()
         }
     }
@@ -172,9 +181,18 @@ impl Pluto {
         Ok(())
     }
 
+    /// Build a tcp stream
+    fn client(&self) -> Result<TcpStream> {
+        let host: Vec<_> = self.host.to_socket_addrs()?.collect();
+        let stream = TcpStream::connect_timeout(&host[0], Duration::from_millis(500))?;
+        Ok(stream)
+    }
+
     /// Send tcp ping with TcpStream connection,
     /// calculate time with host accepted connection.
     fn tcp_ping(&mut self) -> Result<()> {
+        let stream = self.client()?;
+
         self.queue.push(TcpFrame {
             start: Instant::now(),
             elapsed: 0.0,
@@ -182,9 +200,6 @@ impl Pluto {
         });
         let len = self.queue.len();
         let frame = &mut self.queue[len - 1];
-
-        let host: Vec<_> = self.host.to_socket_addrs()?.collect();
-        let stream = TcpStream::connect_timeout(&host[0], Duration::from_millis(500))?;
 
         stream.shutdown(std::net::Shutdown::Both)?;
 
@@ -195,11 +210,13 @@ impl Pluto {
             "Ping tcp::{} - Connected - time={}ms",
             self.host, frame.elapsed
         );
-
         Ok(())
     }
 
+    /// Send ping package with http protocol
     fn http_ping(&mut self) -> Result<()> {
+        let mut stream = self.client()?;
+
         self.queue.push(TcpFrame {
             start: Instant::now(),
             elapsed: 0.0,
@@ -207,9 +224,6 @@ impl Pluto {
         });
         let len = self.queue.len();
         let frame = &mut self.queue[len - 1];
-
-        let host: Vec<_> = self.host.to_socket_addrs()?.collect();
-        let mut stream = TcpStream::connect_timeout(&host[0], Duration::from_millis(500))?;
 
         let body = [1u8; 56];
 
@@ -225,7 +239,11 @@ impl Pluto {
             format!("{first_line}{headers}{}", String::from_utf8_lossy(&body)).as_bytes(),
         )?;
 
-        stream.shutdown(std::net::Shutdown::Both)?;
+        if self.wait {
+            read_response(&mut stream)?;
+        } else {
+            stream.shutdown(std::net::Shutdown::Both)?;
+        }
 
         frame.calculate_delay();
         frame.success = true;
@@ -237,6 +255,18 @@ impl Pluto {
 
         Ok(())
     }
+}
+
+fn read_response(mut stream: &mut TcpStream) -> Result<()> {
+    let mut reader = BufReader::new(&mut stream);
+    let mut buf = String::new();
+    loop {
+        let bytes = reader.read_line(&mut buf)?;
+        if bytes < 3 {
+            break;
+        }
+    }
+    Ok(())
 }
 
 #[cfg(test)]

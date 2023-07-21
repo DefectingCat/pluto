@@ -16,13 +16,16 @@ struct Args {
     /// The protocol will used, http or tcp
     #[arg(short, long, value_enum, default_value_t = PingMethod::Tcp)]
     method: PingMethod,
+    /// Wait http response, only for -m http
+    #[arg(short, long)]
+    wait: bool,
 }
 
 fn main() -> Result<()> {
     let args = Args::parse();
     let host = args.host.ok_or(PlutoError::ArgsError("no host"))?;
 
-    let mut pluto = Pluto::build(args.method, host, args.port);
+    let mut pluto = Pluto::build(args.method, host, args.port, args.wait);
     for _ in 0..args.count {
         match pluto.ping() {
             Ok(_) => {}
