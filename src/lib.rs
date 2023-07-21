@@ -3,6 +3,7 @@ pub mod error;
 use anyhow::Result;
 
 use std::{
+    io::Write,
     net::{TcpStream, ToSocketAddrs},
     time::{Duration, Instant},
 };
@@ -204,9 +205,35 @@ impl Pluto {
             elapsed: 0.0,
             success: false,
         });
+        let len = self.queue.len();
+        let frame = &mut self.queue[len - 1];
 
         let host: Vec<_> = self.host.to_socket_addrs()?.collect();
-        dbg!(&host);
+        let mut stream = TcpStream::connect_timeout(&host[0], Duration::from_millis(500))?;
+
+        let body = [1u8; 56];
+
+        let first_line = "GET / HTTP/1.1\r\n";
+        let headers = format!(
+            "Host: {}\r\nUser-Agent: Pluto/{}\r\nContent-Type: {}\r\nContent-Length: {}\r\n\r\n",
+            self.host,
+            env!("CARGO_PKG_VERSION"),
+            "text/plain",
+            body.len(),
+        );
+        stream.write_all(
+            format!("{first_line}{headers}{}", String::from_utf8_lossy(&body)).as_bytes(),
+        )?;
+
+        stream.shutdown(std::net::Shutdown::Both)?;
+
+        frame.calculate_delay();
+        frame.success = true;
+
+        println!(
+            "Ping http://{} - Connected - time={}ms",
+            self.host, frame.elapsed
+        );
 
         Ok(())
     }
