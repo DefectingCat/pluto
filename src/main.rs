@@ -31,7 +31,13 @@ fn main() -> Result<()> {
     let args = Args::parse();
     let host = args.host.ok_or(PlutoError::ArgsError("no host"))?;
 
-    let mut pluto = Pluto::build(args.method, host, args.port, args.wait);
+    let mut pluto = Pluto::build(args.method, host, args.port);
+    pluto = Pluto {
+        wait: args.wait,
+        bytes: args.bytes,
+        http_method: args.x,
+        ..pluto
+    };
     for _ in 0..args.count {
         match pluto.ping() {
             Ok(_) => {}

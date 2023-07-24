@@ -40,6 +40,22 @@ pub enum HttpMethod {
     TRACE,
     PATCH,
 }
+impl HttpMethod {
+    pub fn as_str(&self) -> &'static str {
+        use HttpMethod::*;
+        match self {
+            GET => "GET",
+            HEAD => "HEAD",
+            POST => "POST",
+            PUT => "PUT",
+            DELETE => "DELETE",
+            CONNECT => "CONNECT",
+            OPTIONS => "OPTIONS",
+            TRACE => "TRACE",
+            PATCH => "PATCH",
+        }
+    }
+}
 
 #[derive(Debug, PartialEq)]
 pub struct TcpFrame {
@@ -104,9 +120,10 @@ pub struct PingResult {
     pub average: f32,
     pub success: usize,
 }
+#[derive(Debug)]
 pub struct Pluto {
     /// Calculate total time
-    start: Instant,
+    pub start: Instant,
     /// Connect method, tcp or http
     pub method: PingMethod,
     /// Target host port, default 80
@@ -119,6 +136,10 @@ pub struct Pluto {
     pub elapsed: f32,
     /// Wait target host response
     pub wait: bool,
+    /// Data length
+    pub bytes: usize,
+    /// The method of http
+    pub http_method: HttpMethod,
     /// All results
     pub result: PingResult,
 }
@@ -132,18 +153,19 @@ impl Default for Pluto {
             host: String::new(),
             elapsed: 0.0,
             result: PingResult::default(),
+            bytes: 56,
+            http_method: HttpMethod::GET,
             wait: false,
         }
     }
 }
 
 impl Pluto {
-    pub fn build(method: PingMethod, host: String, port: u32, wait: bool) -> Self {
+    pub fn build(method: PingMethod, host: String, port: u32) -> Self {
         let host = format!("{}:{}", host, port);
         Self {
             method,
             host,
-            wait,
             ..Self::default()
         }
     }
@@ -199,6 +221,7 @@ impl Pluto {
     fn client(&self) -> Result<TcpStream> {
         let host: Vec<_> = self.host.to_socket_addrs()?.collect();
         let stream = TcpStream::connect_timeout(&host[0], Duration::from_millis(500))?;
+
         Ok(stream)
     }
 
@@ -215,19 +238,20 @@ impl Pluto {
         let len = self.queue.len();
         let frame = &mut self.queue[len - 1];
 
-        let data = [0u8; 56];
+        let data = vec![1u8; self.bytes];
         stream.write_all(&data)?;
         stream.flush()?;
 
-        // stream.
-        stream.shutdown(std::net::Shutdown::Both)?;
+        // stream.shutdown(std::net::Shutdown::Both)?;
 
         frame.calculate_delay();
         frame.success = true;
 
         println!(
-            "Ping tcp::{} - Connected - time={}ms",
-            self.host, frame.elapsed
+            "Ping tcp::{}({}) - Connected - time={}ms",
+            self.host,
+            stream.peer_addr()?,
+            frame.elapsed
         );
         Ok(())
     }
@@ -244,9 +268,10 @@ impl Pluto {
         let len = self.queue.len();
         let frame = &mut self.queue[len - 1];
 
-        let body = [1u8; 56];
+        // let body = [1u8; 56];
+        let body = vec![1u8; self.bytes];
 
-        let first_line = "GET / HTTP/1.1\r\n";
+        let first_line = format!("{} / HTTP/1.1\r\n", self.http_method.as_str());
         let headers = format!(
             "Host: {}\r\nUser-Agent: Pluto/{}\r\nContent-Type: {}\r\nContent-Length: {}\r\n\r\n",
             self.host,
@@ -262,15 +287,17 @@ impl Pluto {
         if self.wait {
             read_response(&mut stream)?;
         } else {
-            stream.shutdown(std::net::Shutdown::Both)?;
+            // stream.shutdown(std::net::Shutdown::Both)?;
         }
 
         frame.calculate_delay();
         frame.success = true;
 
         println!(
-            "Ping http://{} - Connected - time={}ms",
-            self.host, frame.elapsed
+            "Ping http://{}({}) - Connected - time={}ms",
+            self.host,
+            stream.peer_addr()?,
+            frame.elapsed,
         );
 
         Ok(())
