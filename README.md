@@ -6,7 +6,7 @@ A tcping tool.
 
 Basic:
 
-````bash
+```bash
 ❯ pluto google.com -m http -w
 Ping http://google.com:80(198.18.1.70:80) - Connected - time=378.73608ms
 Ping http://google.com:80(198.18.1.70:80) - Connected - time=370.01617ms
@@ -16,8 +16,8 @@ Ping http://google.com:80(198.18.1.70:80) - Connected - time=370.21255ms
 Ping statistics for google.com:80
 4 package sent, 4 package success, 0 package loss
 Approximate trip times in milliseconds:
-Minimum = 378.73608ms, Maximum = 370.01617ms, Average = 373.55206ms```
-````
+Minimum = 378.73608ms, Maximum = 370.01617ms, Average = 373.55206ms
+```
 
 HTTP:
 
