@@ -34,7 +34,17 @@ pluto google.com -m http -w
 And more:
 
 ```bash
-pluto google.com -m http -w -b 512 -c 5
+❯ pluto google.com 443 -m http -w -b 512 -c 5
+Ping http://google.com:443(198.18.1.70:443) - Connected - time=516.17883ms
+Ping http://google.com:443(198.18.1.70:443) - Connected - time=308.3648ms
+Ping http://google.com:443(198.18.1.70:443) - Connected - time=301.67624ms
+Ping http://google.com:443(198.18.1.70:443) - Connected - time=267.50793ms
+Ping http://google.com:443(198.18.1.70:443) - Connected - time=349.98373ms
+
+Ping statistics for google.com:443
+5 package sent, 5 package success, 0 package loss
+Approximate trip times in milliseconds:
+Minimum = 516.17883ms, Maximum = 267.50793ms, Average = 348.7423ms
 ```
 
 ```bash
@@ -61,7 +71,23 @@ Options:
 cargo build --release
 ```
 
-## Lib examples
+## Library usage
+
+### Install
+
+```toml
+# Cargo.toml
+[dependencies]
+pluto = { git = "https://github.com/DefectingCat/pluto", branch = 'master' }
+```
+
+Minimum dependencies:
+
+```toml
+anyhow = "1.0.72"
+clap = { version = "4.3.15", features = ["derive"] }
+thiserror = "1.0.43"
+```
 
 ### Build with args
 
