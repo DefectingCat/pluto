@@ -37,6 +37,24 @@ And more:
 pluto google.com -m http -w -b 512 -c 5
 ```
 
+```bash
+❯ pluto -h
+Usage: pluto [OPTIONS] [HOST] [PORT]
+
+Arguments:
+  [HOST]  Target host address
+  [PORT]  Target host port [default: 80]
+
+Options:
+  -c, --count <COUNT>    Total package send count [default: 4]
+  -m, --method <METHOD>  The protocol will used, http or tcp [default: tcp] [possible values: tcp, http]
+  -w, --wait             Wait http response, only for -m http
+  -b, --bytes <BYTES>    Send package size, will add to body with http [default: 56]
+  -X, --x <X>            Http request method [default: get] [possible values: get, head, post, put, delete, connect, options, trace, patch]
+  -h, --help             Print help
+  -V, --version          Print version
+```
+
 ## Build from source
 
 ```bash
