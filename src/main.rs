@@ -1,3 +1,5 @@
+use std::sync::mpsc;
+
 use anyhow::Result;
 use clap::Parser;
 use pluto::{error::PlutoError, HttpMethod, PingMethod, Pluto};
@@ -25,27 +27,51 @@ struct Args {
     /// Http request method
     #[arg(short = 'X', long, value_enum, default_value_t = HttpMethod::GET)]
     x: HttpMethod,
+    /// Ignore count, send packages forever
+    #[arg(short, long)]
+    timeout: bool,
 }
 
 fn main() -> Result<()> {
     let args = Args::parse();
     let host = args.host.ok_or(PlutoError::ArgsError("no host"))?;
 
-    let mut pluto = Pluto::build(args.method, host, args.port);
-    pluto = Pluto {
+    let pluto = Pluto::build(args.method, host, args.port);
+    let mut pluto = Pluto {
         wait: args.wait,
         bytes: args.bytes,
         http_method: args.x,
+        timeout: args.timeout,
         ..pluto
     };
-    for _ in 0..args.count {
+
+    let (tx, rx) = mpsc::channel();
+
+    ctrlc::set_handler(move || {
+        tx.send(()).unwrap();
+    })
+    .unwrap();
+
+    let mut count = 0;
+    loop {
         match pluto.ping() {
             Ok(_) => {}
             Err(err) => {
                 eprintln!("Ping {}", err)
             }
         };
+        match rx.try_recv() {
+            Ok(_) | Err(mpsc::TryRecvError::Disconnected) => {
+                break;
+            }
+            _ => {}
+        }
+        if !args.timeout && count == args.count {
+            break;
+        }
+        count += 1;
     }
+
     match pluto.end() {
         Ok(_) => {}
         Err(err) => {

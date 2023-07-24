@@ -142,6 +142,8 @@ pub struct Pluto {
     pub http_method: HttpMethod,
     /// All results
     pub result: PingResult,
+    /// Ignore count, send packages forever
+    pub timeout: bool,
 }
 impl Default for Pluto {
     fn default() -> Self {
@@ -156,6 +158,7 @@ impl Default for Pluto {
             bytes: 56,
             http_method: HttpMethod::GET,
             wait: false,
+            timeout: false,
         }
     }
 }
