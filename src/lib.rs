@@ -134,7 +134,7 @@ pub struct Pluto {
     pub host: String,
     /// elapsed time millis
     pub elapsed: f32,
-    /// Wait target host response
+    /// Wait target host response, only for http
     pub wait: bool,
     /// Data length
     pub bytes: usize,
