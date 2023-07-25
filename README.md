@@ -49,6 +49,8 @@ Minimum = 516.17883ms, Maximum = 267.50793ms, Average = 348.7423ms
 
 ```bash
 ❯ pluto -h
+A tcping tool
+
 Usage: pluto [OPTIONS] [HOST] [PORT]
 
 Arguments:
@@ -61,6 +63,7 @@ Options:
   -w, --wait             Wait http response, only for -m http
   -b, --bytes <BYTES>    Send package size, will add to body with http [default: 56]
   -X, --x <X>            Http request method [default: get] [possible values: get, head, post, put, delete, connect, options, trace, patch]
+  -t, --timeout          Ignore count, send packages forever
   -h, --help             Print help
   -V, --version          Print version
 ```
@@ -69,6 +72,12 @@ Options:
 
 ```bash
 cargo build --release
+```
+
+Install with cargo
+
+```bash
+cargo install --path .
 ```
 
 ## Library usage
