@@ -100,9 +100,7 @@ rustup target add x86_64-pc-windows-gnu
 Build dynamic link for Linux on MacOS
 
 ```bash
-TARGET_CC=x86_64-linux-musl-gcc \
-RUSTFLAGS="-C linker=x86_64-linux-musl-gcc" \
-cargo build --target=x86_64-unknown-linux-musl --release
+TARGET_CC=x86_64-unknown-linux-gnu cargo build --release --target x86_64-unknown-linux-gnu
 ```
 
 Static link for Linx on MacOS
