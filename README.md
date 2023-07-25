@@ -80,6 +80,45 @@ Install with cargo
 cargo install --path .
 ```
 
+### Cross compile
+
+Requirement:
+
+```bash
+brew tap SergioBenitez/osxct
+brew install FiloSottile/musl-cross/musl-cross
+brew install SergioBenitez/osxct/x86_64-unknown-linux-gnu
+brew install mingw-w64
+```
+
+```bash
+rustup target add x86_64-unknown-linux-musl
+rustup target add x86_64-unknown-linux-gnu
+rustup target add x86_64-pc-windows-gnu
+```
+
+Build dynamic link for Linux on MacOS
+
+```bash
+TARGET_CC=x86_64-linux-musl-gcc \
+RUSTFLAGS="-C linker=x86_64-linux-musl-gcc" \
+cargo build --target=x86_64-unknown-linux-musl --release
+```
+
+Static link for Linx on MacOS
+
+```bash
+TARGET_CC=x86_64-linux-musl-gcc \
+RUSTFLAGS="-C linker=x86_64-linux-musl-gcc" \
+cargo build --target=x86_64-unknown-linux-musl --release
+```
+
+For Windows on MacOS
+
+```bash
+cargo build --target=x86_64-pc-windows-gnu --release
+```
+
 ## Library usage
 
 ### Install
