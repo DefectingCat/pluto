@@ -48,6 +48,7 @@ fn main() -> Result<()> {
     let (tx, rx) = mpsc::channel();
 
     ctrlc::set_handler(move || {
+        println!("test");
         tx.send(()).unwrap();
     })
     .unwrap();
@@ -62,6 +63,7 @@ fn main() -> Result<()> {
         };
         match rx.try_recv() {
             Ok(_) | Err(mpsc::TryRecvError::Disconnected) => {
+                dbg!("receiver");
                 break;
             }
             _ => {}

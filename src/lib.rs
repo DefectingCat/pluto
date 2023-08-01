@@ -57,18 +57,38 @@ impl HttpMethod {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct TcpFrame {
-    // request start time
+    /// request start time
     start: Instant,
-    // elapsed time millis
+    /// elapsed time millis
     pub elapsed: f32,
-    // The package is sent successful
+    /// The package is sent successful
     pub success: bool,
+    /// TcpStream
+    pub stream: Option<TcpStream>,
+}
+impl Default for TcpFrame {
+    fn default() -> Self {
+        Self {
+            start: Instant::now(),
+            elapsed: 0.0,
+            success: false,
+            stream: None,
+        }
+    }
 }
 impl TcpFrame {
     pub fn calculate_delay(&mut self) {
         self.elapsed = calculate_delay_millis(self.start)
+    }
+}
+impl PartialEq for TcpFrame {
+    fn eq(&self, other: &Self) -> bool {
+        self.elapsed == other.elapsed
+    }
+    fn ne(&self, other: &Self) -> bool {
+        self.elapsed != other.elapsed
     }
 }
 impl Eq for TcpFrame {}
@@ -182,28 +202,21 @@ impl Pluto {
     }
     pub fn end(&mut self) -> Result<()> {
         self.elapsed = calculate_delay_millis(self.start);
+        let default_frame = TcpFrame::default();
 
         self.result.maximum = self
             .queue
             .iter()
             .filter(|frame| frame.success)
             .max_by(|x, y| x.cmp(y))
-            .unwrap_or(&TcpFrame {
-                start: Instant::now(),
-                elapsed: 0.0,
-                success: false,
-            })
+            .unwrap_or(&default_frame)
             .elapsed;
         self.result.minimum = self
             .queue
             .iter()
             .filter(|frame| frame.success)
             .min()
-            .unwrap_or(&TcpFrame {
-                start: Instant::now(),
-                elapsed: 0.0,
-                success: false,
-            })
+            .unwrap_or(&default_frame)
             .elapsed;
         let total = self
             .queue
@@ -231,12 +244,13 @@ impl Pluto {
     /// Send tcp ping with TcpStream connection,
     /// calculate time with host accepted connection.
     fn tcp_ping(&mut self) -> Result<()> {
-        self.queue.push(TcpFrame {
-            start: Instant::now(),
-            elapsed: 0.0,
-            success: false,
-        });
         let mut stream = self.client()?;
+        let frame_stream = stream.try_clone()?;
+        let frame = TcpFrame {
+            stream: Some(frame_stream),
+            ..Default::default()
+        };
+        self.queue.push(frame);
 
         let len = self.queue.len();
         let frame = &mut self.queue[len - 1];
@@ -261,12 +275,13 @@ impl Pluto {
 
     /// Send ping package with http protocol
     fn http_ping(&mut self) -> Result<()> {
-        self.queue.push(TcpFrame {
-            start: Instant::now(),
-            elapsed: 0.0,
-            success: false,
-        });
         let mut stream = self.client()?;
+        let frame_stream = stream.try_clone()?;
+        let frame = TcpFrame {
+            stream: Some(frame_stream),
+            ..Default::default()
+        };
+        self.queue.push(frame);
 
         let len = self.queue.len();
         let frame = &mut self.queue[len - 1];
@@ -321,8 +336,6 @@ fn read_response(mut stream: &mut TcpStream) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use std::time::Instant;
-
     use crate::{PingMethod, TcpFrame};
 
     #[test]
@@ -338,14 +351,14 @@ mod tests {
     #[test]
     fn cmp_frame() {
         let lager = TcpFrame {
-            start: Instant::now(),
             elapsed: 0.12,
             success: true,
+            ..Default::default()
         };
         let samller = TcpFrame {
-            start: Instant::now(),
             elapsed: 0.1,
             success: true,
+            ..Default::default()
         };
         assert!(lager > samller);
     }
