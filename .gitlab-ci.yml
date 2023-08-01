@@ -3,13 +3,12 @@ stages:
 
 variables:
     BINARY_NAME: "pluto"
-    CI_COMMIT_TAG: "test"
 
 build:linux-gnu-amd64:
     stage: build
     image: rust:latest
-    # rules:
-    #     - if: $CI_COMMIT_TAG
+    rules:
+        - if: $CI_COMMIT_TAG
     script:
         - mkdir $HOME/.cargo
         - echo "[source.crates-io]" >> $HOME/.cargo/config
