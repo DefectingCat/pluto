@@ -87,9 +87,6 @@ impl PartialEq for TcpFrame {
     fn eq(&self, other: &Self) -> bool {
         self.elapsed == other.elapsed
     }
-    fn ne(&self, other: &Self) -> bool {
-        self.elapsed != other.elapsed
-    }
 }
 impl Eq for TcpFrame {}
 impl PartialOrd for TcpFrame {
@@ -130,7 +127,7 @@ impl Ord for TcpFrame {
 /// Calculate milliseconds until now.
 fn calculate_delay_millis(start: Instant) -> f32 {
     let nanos = start.elapsed().as_nanos();
-    (nanos as f32) / (1_000_000 as f32)
+    (nanos as f32) / (1_000_000_f32)
 }
 
 #[derive(Debug, Default)]
