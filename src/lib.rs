@@ -252,7 +252,7 @@ impl Pluto {
         let len = self.queue.len();
         let frame = &mut self.queue[len - 1];
 
-        let data = vec![1u8; self.bytes];
+        let data = vec![255_u8; self.bytes];
         stream.write_all(&data)?;
         stream.flush()?;
 
@@ -283,8 +283,7 @@ impl Pluto {
         let len = self.queue.len();
         let frame = &mut self.queue[len - 1];
 
-        // let body = [1u8; 56];
-        let body = vec![1u8; self.bytes];
+        let body = vec![255_u8; self.bytes];
 
         let first_line = format!("{} / HTTP/1.1\r\n", self.http_method.as_str());
         let headers = format!(
