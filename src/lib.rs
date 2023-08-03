@@ -1,14 +1,15 @@
 pub mod error;
 
+use std::time::Duration;
+
 use anyhow::Result;
 
-use std::{
-    io::{BufRead, BufReader, Write},
-    net::{TcpStream, ToSocketAddrs},
-    time::{Duration, Instant},
-};
-
 use clap::ValueEnum;
+use tokio::{
+    io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
+    net::TcpStream,
+    time::{timeout, Instant},
+};
 
 #[derive(Default, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum, Debug)]
 pub enum PingMethod {
@@ -65,8 +66,6 @@ pub struct TcpFrame {
     pub elapsed: f32,
     /// The package is sent successful
     pub success: bool,
-    /// TcpStream
-    pub stream: Option<TcpStream>,
 }
 impl Default for TcpFrame {
     fn default() -> Self {
@@ -74,7 +73,6 @@ impl Default for TcpFrame {
             start: Instant::now(),
             elapsed: 0.0,
             success: false,
-            stream: None,
         }
     }
 }
@@ -189,11 +187,11 @@ impl Pluto {
             ..Self::default()
         }
     }
-    pub fn ping(&mut self) -> Result<()> {
+    pub async fn ping(&mut self) -> Result<()> {
         use PingMethod::*;
         match self.method {
-            Http => self.http_ping()?,
-            Tcp => self.tcp_ping()?,
+            Http => self.http_ping().await?,
+            Tcp => self.tcp_ping().await?,
         };
         Ok(())
     }
@@ -231,20 +229,18 @@ impl Pluto {
     }
 
     /// Build a tcp stream
-    fn client(&self) -> Result<TcpStream> {
-        let host: Vec<_> = self.host.to_socket_addrs()?.collect();
-        let stream = TcpStream::connect_timeout(&host[0], Duration::from_millis(500))?;
+    async fn client(&self) -> Result<TcpStream> {
+        let stream = TcpStream::connect(&self.host);
+        let stream = timeout(Duration::from_millis(500), stream).await??;
 
         Ok(stream)
     }
 
     /// Send tcp ping with TcpStream connection,
     /// calculate time with host accepted connection.
-    fn tcp_ping(&mut self) -> Result<()> {
-        let mut stream = self.client()?;
-        let frame_stream = stream.try_clone()?;
+    async fn tcp_ping(&mut self) -> Result<()> {
+        let mut stream = self.client().await?;
         let frame = TcpFrame {
-            stream: Some(frame_stream),
             ..Default::default()
         };
         self.queue.push(frame);
@@ -253,8 +249,8 @@ impl Pluto {
         let frame = &mut self.queue[len - 1];
 
         let data = vec![255_u8; self.bytes];
-        stream.write_all(&data)?;
-        stream.flush()?;
+        stream.write_all(&data).await?;
+        stream.flush().await?;
 
         // stream.shutdown(std::net::Shutdown::Both)?;
 
@@ -271,11 +267,9 @@ impl Pluto {
     }
 
     /// Send ping package with http protocol
-    fn http_ping(&mut self) -> Result<()> {
-        let mut stream = self.client()?;
-        let frame_stream = stream.try_clone()?;
+    async fn http_ping(&mut self) -> Result<()> {
+        let mut stream = self.client().await?;
         let frame = TcpFrame {
-            stream: Some(frame_stream),
             ..Default::default()
         };
         self.queue.push(frame);
@@ -293,13 +287,15 @@ impl Pluto {
             "text/plain",
             body.len(),
         );
-        stream.write_all(
-            format!("{first_line}{headers}{}", String::from_utf8_lossy(&body)).as_bytes(),
-        )?;
-        stream.flush()?;
+        stream
+            .write_all(
+                format!("{first_line}{headers}{}", String::from_utf8_lossy(&body)).as_bytes(),
+            )
+            .await?;
+        stream.flush().await?;
 
         if self.wait {
-            read_response(&mut stream)?;
+            read_response(&mut stream).await?;
         } else {
             // stream.shutdown(std::net::Shutdown::Both)?;
         }
@@ -318,11 +314,11 @@ impl Pluto {
     }
 }
 
-fn read_response(mut stream: &mut TcpStream) -> Result<()> {
+async fn read_response(mut stream: &mut TcpStream) -> Result<()> {
     let mut reader = BufReader::new(&mut stream);
     let mut buf = String::new();
     loop {
-        let bytes = reader.read_line(&mut buf)?;
+        let bytes = reader.read_line(&mut buf).await?;
         if bytes < 3 {
             break;
         }
