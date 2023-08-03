@@ -28,7 +28,7 @@ impl From<&str> for PingMethod {
     }
 }
 
-#[derive(Debug, Default, ValueEnum, Clone)]
+#[derive(Debug, Default, ValueEnum, Clone, Copy)]
 pub enum HttpMethod {
     #[default]
     GET,
@@ -240,13 +240,7 @@ impl Pluto {
     /// calculate time with host accepted connection.
     async fn tcp_ping(&mut self) -> Result<()> {
         let mut stream = self.client().await?;
-        let frame = TcpFrame {
-            ..Default::default()
-        };
-        self.queue.push(frame);
-
-        let len = self.queue.len();
-        let frame = &mut self.queue[len - 1];
+        let mut frame = TcpFrame::default();
 
         let data = vec![255_u8; self.bytes];
         stream.write_all(&data).await?;
@@ -256,12 +250,14 @@ impl Pluto {
 
         frame.calculate_delay();
         frame.success = true;
+        let elapsed = frame.elapsed;
+        self.queue.push(frame);
 
         println!(
             "Ping tcp::{}({}) - Connected - time={}ms",
             self.host,
             stream.peer_addr()?,
-            frame.elapsed
+            elapsed
         );
         Ok(())
     }
@@ -269,14 +265,7 @@ impl Pluto {
     /// Send ping package with http protocol
     async fn http_ping(&mut self) -> Result<()> {
         let mut stream = self.client().await?;
-        let frame = TcpFrame {
-            ..Default::default()
-        };
-        self.queue.push(frame);
-
-        let len = self.queue.len();
-        let frame = &mut self.queue[len - 1];
-
+        let mut frame = TcpFrame::default();
         let body = vec![255_u8; self.bytes];
 
         let first_line = format!("{} / HTTP/1.1\r\n", self.http_method.as_str());
@@ -302,12 +291,14 @@ impl Pluto {
 
         frame.calculate_delay();
         frame.success = true;
+        let elapsed = frame.elapsed;
+        self.queue.push(frame);
 
         println!(
             "Ping http://{}({}) - Connected - time={}ms",
             self.host,
             stream.peer_addr()?,
-            frame.elapsed,
+            elapsed,
         );
 
         Ok(())
