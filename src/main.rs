@@ -57,14 +57,11 @@ async fn main() -> Result<()> {
         }
     }
 
-    let len = pluto.queue.len();
     println!();
     println!("Ping statistics for {}", pluto.host);
     println!(
         "{} package sent, {} package success, {} package loss",
-        len,
-        pluto.result.success,
-        len - pluto.result.success
+        pluto.result.total, pluto.result.success, pluto.result.loss
     );
     println!("Approximate trip times in milliseconds:");
     println!(
