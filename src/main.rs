@@ -1,8 +1,7 @@
-use std::sync::mpsc;
-
 use anyhow::Result;
 use clap::Parser;
 use pluto::{error::PlutoError, HttpMethod, PingMethod, Pluto};
+use tokio::signal;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -32,7 +31,8 @@ struct Args {
     timeout: bool,
 }
 
-fn main() -> Result<()> {
+#[tokio::main]
+async fn main() -> Result<()> {
     let args = Args::parse();
     let host = args.host.ok_or(PlutoError::ArgsError("no host"))?;
 
@@ -45,31 +45,9 @@ fn main() -> Result<()> {
         ..pluto
     };
 
-    let (tx, rx) = mpsc::channel();
-
-    ctrlc::set_handler(move || {
-        tx.send(()).unwrap();
-    })
-    .unwrap();
-
-    let mut count = 0;
-    loop {
-        match pluto.ping() {
-            Ok(_) => {}
-            Err(err) => {
-                eprintln!("Ping {}", err)
-            }
-        };
-        match rx.try_recv() {
-            Ok(_) | Err(mpsc::TryRecvError::Disconnected) => {
-                break;
-            }
-            _ => {}
-        }
-        if !args.timeout && count == args.count {
-            break;
-        }
-        count += 1;
+    tokio::select! {
+        _ = signal::ctrl_c() => {},
+        _ = ping(args.count, args.timeout, &mut pluto) => {}
     }
 
     match pluto.end() {
@@ -79,14 +57,11 @@ fn main() -> Result<()> {
         }
     }
 
-    let len = pluto.queue.len();
     println!();
     println!("Ping statistics for {}", pluto.host);
     println!(
         "{} package sent, {} package success, {} package loss",
-        len,
-        pluto.result.success,
-        len - pluto.result.success
+        pluto.result.total, pluto.result.success, pluto.result.loss
     );
     println!("Approximate trip times in milliseconds:");
     println!(
@@ -95,4 +70,20 @@ fn main() -> Result<()> {
     );
 
     Ok(())
+}
+
+async fn ping(arg_count: usize, timeout: bool, pluto: &mut Pluto) {
+    let mut count = 0;
+    loop {
+        match pluto.ping().await {
+            Ok(_) => {}
+            Err(err) => {
+                eprintln!("Ping {}", err)
+            }
+        };
+        if !timeout && count == arg_count {
+            break;
+        }
+        count += 1;
+    }
 }

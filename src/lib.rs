@@ -1,14 +1,17 @@
 pub mod error;
 
+use std::time::Duration;
+
 use anyhow::Result;
 
-use std::{
-    io::{BufRead, BufReader, Write},
-    net::{TcpStream, ToSocketAddrs},
-    time::{Duration, Instant},
+use clap::ValueEnum;
+use tokio::{
+    io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
+    net::TcpStream,
+    time::{timeout, Instant},
 };
 
-use clap::ValueEnum;
+use crate::error::PlutoError;
 
 #[derive(Default, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum, Debug)]
 pub enum PingMethod {
@@ -27,7 +30,7 @@ impl From<&str> for PingMethod {
     }
 }
 
-#[derive(Debug, Default, ValueEnum, Clone)]
+#[derive(Debug, Default, ValueEnum, Clone, Copy)]
 pub enum HttpMethod {
     #[default]
     GET,
@@ -59,22 +62,24 @@ impl HttpMethod {
 
 #[derive(Debug)]
 pub struct TcpFrame {
+    id: usize,
     /// request start time
     start: Instant,
     /// elapsed time millis
     pub elapsed: f32,
-    /// The package is sent successful
+    /// The ping package is loss or not
     pub success: bool,
-    /// TcpStream
-    pub stream: Option<TcpStream>,
+    /// The frame is sent successful
+    send_success: bool,
 }
 impl Default for TcpFrame {
     fn default() -> Self {
         Self {
+            id: 0,
             start: Instant::now(),
             elapsed: 0.0,
             success: false,
-            stream: None,
+            send_success: false,
         }
     }
 }
@@ -134,7 +139,9 @@ fn calculate_delay_millis(start: Instant) -> f32 {
 pub struct PingResult {
     pub minimum: f32,
     pub maximum: f32,
+    pub total: usize,
     pub average: f32,
+    pub loss: usize,
     pub success: usize,
 }
 #[derive(Debug)]
@@ -189,11 +196,11 @@ impl Pluto {
             ..Self::default()
         }
     }
-    pub fn ping(&mut self) -> Result<()> {
+    pub async fn ping(&mut self) -> Result<()> {
         use PingMethod::*;
         match self.method {
-            Http => self.http_ping()?,
-            Tcp => self.tcp_ping()?,
+            Http => self.http_ping().await?,
+            Tcp => self.tcp_ping().await?,
         };
         Ok(())
     }
@@ -201,60 +208,62 @@ impl Pluto {
         self.elapsed = calculate_delay_millis(self.start);
         let default_frame = TcpFrame::default();
 
-        self.result.maximum = self
-            .queue
+        let queue: Vec<_> = self.queue.iter().filter(|q| q.send_success).collect();
+        let total_len = queue.len();
+        let sucess_queue = queue.iter().filter(|f| f.send_success).collect::<Vec<_>>();
+        self.result.maximum = sucess_queue
             .iter()
-            .filter(|frame| frame.success)
             .max_by(|x, y| x.cmp(y))
+            .map(|f| **f)
             .unwrap_or(&default_frame)
             .elapsed;
-        self.result.minimum = self
-            .queue
+        self.result.minimum = sucess_queue
             .iter()
-            .filter(|frame| frame.success)
             .min()
+            .map(|f| **f)
             .unwrap_or(&default_frame)
             .elapsed;
-        let total = self
-            .queue
+        let total = sucess_queue
             .iter()
-            .filter(|frame| frame.success)
             .fold(0.0, |prev, frame| prev + frame.elapsed);
-        self.result.average = total / self.queue.len() as f32;
-        self.result.success = self
-            .queue
+        self.result.total = total_len;
+        self.result.average = total / total_len as f32;
+        self.result.success = queue
             .iter()
             .filter(|frame| frame.success)
             .collect::<Vec<_>>()
             .len();
+        self.result.loss = total_len - self.result.success;
         Ok(())
     }
 
     /// Build a tcp stream
-    fn client(&self) -> Result<TcpStream> {
-        let host: Vec<_> = self.host.to_socket_addrs()?.collect();
-        let stream = TcpStream::connect_timeout(&host[0], Duration::from_millis(500))?;
+    async fn client(&self) -> Result<TcpStream> {
+        let stream = TcpStream::connect(&self.host);
+        let stream = timeout(Duration::from_millis(500), stream).await??;
 
         Ok(stream)
     }
 
     /// Send tcp ping with TcpStream connection,
     /// calculate time with host accepted connection.
-    fn tcp_ping(&mut self) -> Result<()> {
-        let mut stream = self.client()?;
-        let frame_stream = stream.try_clone()?;
-        let frame = TcpFrame {
-            stream: Some(frame_stream),
-            ..Default::default()
-        };
-        self.queue.push(frame);
-
+    async fn tcp_ping(&mut self) -> Result<()> {
+        let mut stream = self.client().await?;
+        self.queue.push(TcpFrame::default());
         let len = self.queue.len();
-        let frame = &mut self.queue[len - 1];
+        let frame = self
+            .queue
+            .last_mut()
+            .ok_or(PlutoError::CommonError(format!(
+                "access frame {} failed",
+                len
+            )))?;
+        frame.id = len;
 
         let data = vec![255_u8; self.bytes];
-        stream.write_all(&data)?;
-        stream.flush()?;
+        stream.write_all(&data).await?;
+        stream.flush().await?;
+        frame.send_success = true;
 
         // stream.shutdown(std::net::Shutdown::Both)?;
 
@@ -271,18 +280,18 @@ impl Pluto {
     }
 
     /// Send ping package with http protocol
-    fn http_ping(&mut self) -> Result<()> {
-        let mut stream = self.client()?;
-        let frame_stream = stream.try_clone()?;
-        let frame = TcpFrame {
-            stream: Some(frame_stream),
-            ..Default::default()
-        };
-        self.queue.push(frame);
-
+    async fn http_ping(&mut self) -> Result<()> {
+        let mut stream = self.client().await?;
+        self.queue.push(TcpFrame::default());
         let len = self.queue.len();
-        let frame = &mut self.queue[len - 1];
-
+        let frame = self
+            .queue
+            .last_mut()
+            .ok_or(PlutoError::CommonError(format!(
+                "access frame {} failed",
+                len
+            )))?;
+        frame.id = len;
         let body = vec![255_u8; self.bytes];
 
         let first_line = format!("{} / HTTP/1.1\r\n", self.http_method.as_str());
@@ -293,14 +302,18 @@ impl Pluto {
             "text/plain",
             body.len(),
         );
-        stream.write_all(
-            format!("{first_line}{headers}{}", String::from_utf8_lossy(&body)).as_bytes(),
-        )?;
-        stream.flush()?;
+        stream
+            .write_all(
+                format!("{first_line}{headers}{}", String::from_utf8_lossy(&body)).as_bytes(),
+            )
+            .await?;
+        stream.flush().await?;
 
         if self.wait {
-            read_response(&mut stream)?;
+            read_response(&mut stream).await?;
+            frame.send_success = true;
         } else {
+            frame.send_success = true;
             // stream.shutdown(std::net::Shutdown::Both)?;
         }
 
@@ -318,11 +331,11 @@ impl Pluto {
     }
 }
 
-fn read_response(mut stream: &mut TcpStream) -> Result<()> {
+async fn read_response(mut stream: &mut TcpStream) -> Result<()> {
     let mut reader = BufReader::new(&mut stream);
     let mut buf = String::new();
     loop {
-        let bytes = reader.read_line(&mut buf)?;
+        let bytes = reader.read_line(&mut buf).await?;
         if bytes < 3 {
             break;
         }
