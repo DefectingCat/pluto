@@ -145,6 +145,7 @@ pluto = Pluto {
     http_method: args.x,
     ..pluto
 };
+pluto.ping().await?;
 ```
 
 ### Full example
@@ -158,7 +159,7 @@ pluto = Pluto {
     ..pluto
 };
 for _ in 0..args.count {
-    match pluto.ping() {
+    match pluto.ping().await {
         Ok(_) => {}
         Err(err) => {
             eprintln!("Ping {}", err)
