@@ -167,7 +167,9 @@ for _ in 0..args.count {
     };
 }
 match pluto.end() {
-    Ok(_) => {}
+    Ok(_) => {
+        thread::sleep(Duration::from_millis(500));
+    }
     Err(err) => {
         eprintln!("{}", err);
     }
