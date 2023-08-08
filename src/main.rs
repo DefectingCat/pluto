@@ -80,7 +80,9 @@ async fn ping(arg_count: usize, timeout: bool, pluto: &mut Pluto) {
         }
         count += 1;
         match pluto.ping().await {
-            Ok(_) => {}
+            Ok(_) => {
+                // thread::sleep(Duration::from_millis(500));
+            }
             Err(err) => {
                 eprintln!("Ping {}", err)
             }

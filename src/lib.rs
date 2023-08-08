@@ -265,8 +265,6 @@ impl Pluto {
         stream.flush().await?;
         frame.send_success = true;
 
-        stream.shutdown().await?;
-
         frame.calculate_delay();
         frame.success = true;
 
@@ -315,8 +313,6 @@ impl Pluto {
         } else {
             frame.send_success = true;
         }
-
-        stream.shutdown().await?;
 
         frame.calculate_delay();
         frame.success = true;
