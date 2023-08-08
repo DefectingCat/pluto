@@ -265,7 +265,7 @@ impl Pluto {
         stream.flush().await?;
         frame.send_success = true;
 
-        // stream.shutdown(std::net::Shutdown::Both)?;
+        stream.shutdown().await?;
 
         frame.calculate_delay();
         frame.success = true;
@@ -314,8 +314,9 @@ impl Pluto {
             frame.send_success = true;
         } else {
             frame.send_success = true;
-            // stream.shutdown(std::net::Shutdown::Both)?;
         }
+
+        stream.shutdown().await?;
 
         frame.calculate_delay();
         frame.success = true;

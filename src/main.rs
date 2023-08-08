@@ -31,7 +31,7 @@ struct Args {
     timeout: bool,
 }
 
-#[tokio::main]
+#[tokio::main(worker_threads = 1)]
 async fn main() -> Result<()> {
     let args = Args::parse();
     let host = args.host.ok_or(PlutoError::ArgsError("no host"))?;
@@ -75,15 +75,15 @@ async fn main() -> Result<()> {
 async fn ping(arg_count: usize, timeout: bool, pluto: &mut Pluto) {
     let mut count = 0;
     loop {
+        if !timeout && count == arg_count {
+            break;
+        }
+        count += 1;
         match pluto.ping().await {
             Ok(_) => {}
             Err(err) => {
                 eprintln!("Ping {}", err)
             }
         };
-        if !timeout && count == arg_count {
-            break;
-        }
-        count += 1;
     }
 }
