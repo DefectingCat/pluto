@@ -1,3 +1,5 @@
+use std::{thread, time::Duration};
+
 use anyhow::Result;
 use clap::Parser;
 use pluto::{error::PlutoError, HttpMethod, PingMethod, Pluto};
@@ -81,7 +83,7 @@ async fn ping(arg_count: usize, timeout: bool, pluto: &mut Pluto) {
         count += 1;
         match pluto.ping().await {
             Ok(_) => {
-                // thread::sleep(Duration::from_millis(500));
+                thread::sleep(Duration::from_millis(500));
             }
             Err(err) => {
                 eprintln!("Ping {}", err)
