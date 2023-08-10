@@ -168,6 +168,8 @@ pub struct Pluto {
     pub result: PingResult,
     /// Ignore count, send packages forever
     pub timeout: bool,
+    /// Timeout for waiting each package time
+    pub wait_timeout: u64,
 }
 impl Default for Pluto {
     fn default() -> Self {
@@ -183,6 +185,7 @@ impl Default for Pluto {
             http_method: HttpMethod::GET,
             wait: false,
             timeout: false,
+            wait_timeout: 300,
         }
     }
 }
@@ -240,7 +243,7 @@ impl Pluto {
     /// Build a tcp stream
     async fn client(&self) -> Result<TcpStream> {
         let stream = TcpStream::connect(&self.host);
-        let stream = timeout(Duration::from_millis(500), stream).await??;
+        let stream = timeout(Duration::from_millis(self.wait_timeout), stream).await??;
 
         Ok(stream)
     }
