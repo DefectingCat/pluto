@@ -20,7 +20,7 @@ struct Args {
     #[arg(short, long, value_enum, default_value_t = PingMethod::Tcp)]
     method: PingMethod,
     /// Wait http response, only for -m http
-    #[arg(short, long)]
+    #[arg(short = 'w', long)]
     wait: bool,
     /// Send package size, will add to body with http
     #[arg(short, long, default_value_t = 56)]
@@ -31,6 +31,9 @@ struct Args {
     /// Ignore count, send packages forever
     #[arg(short, long)]
     timeout: bool,
+    /// Timeout for waiting each package time
+    #[arg(short = 'W', long, default_value_t = 300)]
+    wait_timeout: u64,
 }
 
 #[tokio::main(worker_threads = 1)]
@@ -44,6 +47,7 @@ async fn main() -> Result<()> {
         bytes: args.bytes,
         http_method: args.x,
         timeout: args.timeout,
+        wait_timeout: args.wait_timeout,
         ..pluto
     };
 
