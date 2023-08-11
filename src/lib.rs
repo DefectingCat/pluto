@@ -244,7 +244,6 @@ impl Pluto {
     async fn client(&self) -> Result<TcpStream> {
         let stream = TcpStream::connect(&self.host);
         let stream = timeout(Duration::from_millis(self.wait_timeout), stream).await??;
-
         Ok(stream)
     }
 
