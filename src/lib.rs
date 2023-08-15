@@ -230,7 +230,9 @@ impl Pluto {
             .iter()
             .fold(0.0, |prev, frame| prev + frame.elapsed);
         self.result.total = total_len;
-        self.result.average = total / total_len as f32;
+
+        let average = total / total_len as f32;
+        self.result.average = if f32::is_nan(average) { 0.0 } else { average };
         self.result.success = queue
             .iter()
             .filter(|frame| frame.success)
