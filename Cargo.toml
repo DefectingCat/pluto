@@ -32,3 +32,6 @@ path = 'src/main.rs'
 
 [[example]]
 name = 'server'
+
+[profile.release]
+lto = true
