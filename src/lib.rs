@@ -95,26 +95,20 @@ impl PartialEq for TcpFrame {
 }
 impl Eq for TcpFrame {}
 impl PartialOrd for TcpFrame {
-    fn ge(&self, other: &Self) -> bool {
-        self.elapsed >= other.elapsed
-    }
-    fn gt(&self, other: &Self) -> bool {
-        self.elapsed > other.elapsed
-    }
-    fn le(&self, other: &Self) -> bool {
-        self.elapsed <= other.elapsed
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
     }
     fn lt(&self, other: &Self) -> bool {
         self.elapsed < other.elapsed
     }
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        use std::cmp::Ordering::*;
-        match self.elapsed - other.elapsed {
-            x if x < 0.0 => Some(Less),
-            x if x > 0.0 => Some(Greater),
-            x if x == 0.0 => Some(Equal),
-            _ => Some(Equal),
-        }
+    fn le(&self, other: &Self) -> bool {
+        self.elapsed <= other.elapsed
+    }
+    fn gt(&self, other: &Self) -> bool {
+        self.elapsed > other.elapsed
+    }
+    fn ge(&self, other: &Self) -> bool {
+        self.elapsed >= other.elapsed
     }
 }
 impl Ord for TcpFrame {
